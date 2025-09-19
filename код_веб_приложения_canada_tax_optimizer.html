@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Canada Tax Optimizer — Single-File App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#0b1220; --panel:#121a2a; --panel2:#0f1727; --text:#e6eefc; --muted:#9bb0d3;
+  --accent:#4cc9f0; --accent2:#a78bfa; --green:#22c55e; --yellow:#fbbf24; --red:#ef4444;
+  --line:#20304d; /* normal hairline */
+  --line-strong:#405b86; /* stronger divider for header/footer */
+  --line-faint: rgba(155,176,211,.021); /* ultra subtle column divider */
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial}
+header{position:sticky;top:0;background:var(--panel);z-index:10;border-bottom:1px solid var(--line)}
+.container{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}
+small.note{color:var(--muted)}
+.grid{display:grid;gap:16px}
+.grid-2{grid-template-columns:1.2fr .8fr}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h2{margin:0 0 8px 0;font-size:18px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+label{color:#c7d7f5;font-size:14px}
+input[type="number"],input[type="text"],select,textarea{width:100%;padding:10px 12px;background:var(--panel2);color:var(--text);
+  border:1px solid var(--line);border-radius:10px;outline:none}
+input[type="checkbox"]{transform:scale(1.2);margin-right:6px}
+.btn{display:inline-flex;gap:8px;align-items:center;background:var(--accent);color:#031025;border:none;padding:10px 14px;
+  border-radius:10px;cursor:pointer;font-weight:600}
+.btn.secondary{background:#334155;color:#e2e8f0}
+.btn.warning{background:var(--yellow);color:#1f2937}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+hr.div{border:none;border-top:1px dashed var(--line);margin:12px 0}
+
+/* table basics */
+table{width:100%;border-collapse:collapse;font-size:14px}
+/* allow horizontal scroll when needed */
+#formsListTable{min-width:1400px; table-layout:fixed; /* set column width vars for sticky positioning */
+  --col1px: 110px; /* Structure (sticky) */
+  --col2px: 78px; /* Scenario (sticky, 40% smaller) */
+}
+/* fixed/sticky column classes */
+#formsListTable th.col-fixed1, #formsListTable td.col-fixed1{position:sticky;left:0;z-index:8;background:var(--panel);width:var(--col1px);box-shadow:2px 0 0 var(--line-strong)}
+#formsListTable th.col-fixed2, #formsListTable td.col-fixed2{position:sticky;left:var(--col1px);z-index:7;background:var(--panel);width:var(--col2px);box-shadow:2px 0 0 var(--line)}
+th,td{padding:8px;border-bottom:1px solid var(--line)}
+th{color:#dbe9ff;text-align:left;background:rgba(255,255,255,.05)}
+td.num{text-align:right}
+/* source link icons */
+.src-icons{display:inline-flex;gap:8px;margin-left:6px;vertical-align:middle}
+.src-icons a{color:var(--accent2);text-decoration:none;border:1px solid var(--line);padding:1px 6px;border-radius:8px;font-size:12px;opacity:.9}
+.src-icons a:hover{opacity:1;background:rgba(167,139,250,.12)}
+th{color:#dbe9ff;text-align:left;background:rgba(255,255,255,.05)}
+td.num{text-align:right}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--muted)}
+.flex{display:flex;gap:10px;flex-wrap:wrap}
+.kpi{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+.kpi .box{background:var(--panel);border:1px solid var(--line);padding:12px;border-radius:14px}
+.kpi .box h3{margin:0 0 6px;font-size:13px;color:#9bb0d3}
+.kpi .val{font-weight:800;font-size:18px}
+.tag{padding:2px 8px;border-radius:10px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+footer{opacity:.7;text-align:center;padding:18px;color:var(--muted)}
+code.inline{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
+.warning{color:#fed7aa}
+.success{color:#bbf7d0}
+.danger{color:#fecaca}
+@media (max-width:940px){
+  .grid-2{grid-template-columns:1fr}
+  .kpi{grid-template-columns:1fr 1fr}
+}
+.topgrid{display:grid;grid-template-columns:1fr 1.2fr 1.2fr 1.2fr 1.2fr auto;gap:10px;align-items:end;margin-top:10px}
+.topgrid label{font-size:12px;color:#9bb0d3}
+.topgrid input, .topgrid select{height:40px}
+.span-all{grid-column:1 / -1}
+
+/* Forms/Entities list styles */
+.forms-title{margin:4px 0 8px 0;color:#c7d7f5;font-size:14px}
+#formsListWrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px;position:relative;/* vertical scrollbar hidden, horizontal visible */
+/* Firefox */scrollbar-width:thin;scrollbar-color: rgba(155,176,211,.28) transparent; /* subtle */
+/* Legacy IE */-ms-overflow-style:none}
+/* WebKit scrollbars */
+#formsListWrap::-webkit-scrollbar{width:0;height:0}            /* hide vertical */
+#formsListWrap::-webkit-scrollbar:horizontal{height:6px}
+#formsListWrap::-webkit-scrollbar-track:horizontal{background:transparent}
+#formsListWrap::-webkit-scrollbar-thumb:horizontal{background:rgba(155,176,211,.28);border-radius:6px;border:1px solid rgba(32,48,77,.6)}
+#formsListWrap:hover::-webkit-scrollbar-thumb:horizontal{background:rgba(155,176,211,.36)}
+#formsListWrap:active::-webkit-scrollbar-thumb:horizontal{background:rgba(155,176,211,.42)}
+/* ensure first two header cells are sticky at top within the scroll container */
+#formsListTable thead th.col-fixed1, #formsListTable thead th.col-fixed2{position:sticky;top:0;z-index:12;background:var(--panel);}
+
+/* scenario column width */
+.col-scenario{width:var(--col2px)}
+#formsListTable thead th{position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:2px solid var(--line-strong);box-shadow:0 2px 0 var(--line-strong);}
+/* override for frozen header cells */
+#formsListTable thead th.col-fixed1, #formsListTable thead th.col-fixed2{position:sticky;top:0;background:var(--panel);z-index:12}
+#formsListTable tbody tr:nth-child(odd){background:rgba(255,255,255,.02)}
+/* grouped first column cell */
+.group-cell{font-weight:700;color:#c7d7f5;vertical-align:top;background:var(--panel);border-right:1px solid var(--line);padding-right:6px;white-space:normal;word-break:keep-all;line-height:1.25;width:auto}  
+
+#formsListTable th:first-child, #formsListTable td:first-child{width:var(--col1px)}
+/* sticky first two columns */
+#formsListTable colgroup col.col1{width:var(--col1px)}
+#formsListTable colgroup col.col2{width:var(--col2px)}
+/* Ensure opaque backgrounds for sticky cols even over zebra rows */
+#formsListTable td.col-fixed1, #formsListTable th.col-fixed1,
+#formsListTable td.col-fixed2, #formsListTable th.col-fixed2{background:var(--panel) !important}
+/* header provincial select */
+.th-prov{white-space:nowrap}
+.th-prov select{display:inline-block;vertical-align:middle;height:28px;min-width:120px;width:120px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:2px 8px;margin-right:6px}
+.th-prov .suffix{white-space:nowrap;color:#dbe9ff;opacity:.9;font-weight:600;font-size:13px}
+/* ultra‑subtle vertical dividers for columns 3..end (do NOT touch first two frozen cols) */
+#formsListTable td:not(.col-fixed1):not(.col-fixed2),
+#formsListTable th:not(.col-fixed1):not(.col-fixed2){
+  border-left:1px solid var(--line-faint);
+}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+  <div class="flex" style="align-items:center;justify-content:space-between">
+    <div>
+      <h1>Canada Tax Optimizer</h1>
+      <small class="note">Введи сумму дохода и выбери деятельность — всё остальное посчитается автоматически (Онтарио по умолчанию).</small>
+    </div>
+    <div class="flex">
+      <button class="btn secondary" onclick="resetDefaults()">Reset defaults</button>
+      <button class="btn" onclick="saveToFile()">Download .json</button>
+    </div>
+  </div>
+  <!-- TOP ONE-LINE CONTROLS -->
+  <div class="topgrid">
+    <div>
+      <label>Сумма дохода (CAD)</label>
+      <input type="number" id="topAmount" value="100000" min="0" step="100" />
+    </div>
+    <div>
+      <label>Отрасль бизнеса (NAICS)</label>
+      <select id="naicsSel"><option value="">— выберите —</option></select>
+    </div>
+    <div>
+      <label>Группа профессии (NOC)</label>
+      <select id="nocGroupSel" disabled><option value="">— выберите —</option></select>
+    </div>
+    <div>
+      <label>Конкретная профессия (NOC)</label>
+      <select id="topOcc" disabled><option value="">Загрузка NOC…</option></select>
+    </div>
+    <div>
+      <label>Structure / Status (Entity)</label>
+      <select id="structSel"><option value="">— select —</option></select>
+      <small class="note" id="structNote"></small>
+    </div>
+    <div>
+      <button class="btn" id="topCalc">Рассчитать</button>
+    </div>
+  </div>
+</div>
+</header>
+
+<main class="container grid grid-2" id="app">
+  <section class="card span-all">
+  <h2>Summary — сравнение сценариев</h2>
+
+  <div id="formsListWrap">
+    <table id="formsListTable">
+      <colgroup>
+          <col class="col1">
+          <col class="col2">
+          <col>
+          <col>
+          <col>
+          <col>
+          <col>
+          <col>
+          <col>
+        </colgroup>
+      <thead>
+        <tr>
+          <th class="col-fixed1">Structure</th>
+          <th class="col-scenario col-fixed2">Scenario</th>
+          <th>Description</th>
+          <th style="width:9%">Federal Tax %/$</th>
+          <th style="width:12%" class="th-prov">
+            <select id="provSel" title="Provincial Tax">
+              <option value="ON" selected>Provincial Tax</option>
+              <option value="BC">BC</option>
+              <option value="AB">AB</option>
+              <option value="QC">QC</option>
+              <option value="MB">MB</option>
+              <option value="SK">SK</option>
+              <option value="NS">NS</option>
+              <option value="NB">NB</option>
+              <option value="NL">NL</option>
+              <option value="PE">PE</option>
+              <option value="NT">NT</option>
+              <option value="YT">YT</option>
+              <option value="NU">NU</option>
+            </select><span class="suffix">%/$</span>
+          </th>
+          <th style="width:9%">Total Tax $</th>
+          <th style="width:12%"><span title="Retained in Company (after tax)">Corp&nbsp;Net&nbsp;$</span></th>
+          <th style="width:12%"><span title="Personal cash (after tax)">Personal&nbsp;Net&nbsp;$</span></th>
+          <th style="width:7%">Eff. %</th>
+        </tr>
+      </thead>
+      <tbody id="formsListBody"></tbody>
+    </table>
+  </div>
+</section>
+
+  <section class="card" id="scenarioCard">
+    <h2>Scenario — 8 вариантов (кратко)</h2>
+    <ol>
+      <li><b>S1 — Investor (Capital Gains)</b>: редкие сделки / долгий горизонт; включение 50%.</li>
+      <li><b>S2 — Active Trader (Business)</b>: активная торговля как бизнес у физлица; прогрессивная ставка + OHP.</li>
+      <li><b>S3 — CCPC Active (SBD)</b>: активный бизнес внутри CCPC; сниженная ставка до лимита SBD.</li>
+      <li><b>S4 — CCPC Passive / Holdco (SIB → owner)</b>: пассивный доход в корпорации; RDTOH/дивиденды до владельца.</li>
+      <li><b>S5 — Partnership (flow‑through)</b>: GP/LP/LLP, доход проходит к участникам и облагается у них.</li>
+      <li><b>S6 — Professional Corporation</b>: аналог CCPC Active (SBD) для регулируемых профессий.</li>
+      <li><b>S7 — Opco→Holdco→Owner pipeline</b>: активный доход в Opco; дивиденды в Holdco/владельцу (упр. эффективной ставкой).</li>
+      <li><b>S8 — CCPC Active (Alberta demo)</b>: активный бизнес с ставками AB (примерно).</li>
+    </ol>
+  </section>
+</main>
+
+<footer>Single-file app. Данные подсчётов — ориентировочные; ставки можно менять в панели «Параметры ставок».</footer>
+
+<script>
+const fmtC = new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:2});
+const fmtP = new Intl.NumberFormat('en-CA',{style:'percent',maximumFractionDigits:2});
+
+let state = {
+  fed: [
+    {upper:53359, rate:0.15},
+    {upper:106717, rate:0.205},
+    {upper:165430, rate:0.26},
+    {upper:235675, rate:0.29},
+    {upper:Infinity, rate:0.33},
+  ],
+  prov: {
+    ON: [
+      {upper:52886, rate:0.0505},
+      {upper:105775, rate:0.0915},
+      {upper:150000, rate:0.1116},
+      {upper:220000, rate:0.1216},
+      {upper:Infinity, rate:0.1316},
+    ]
+  },
+  currentProv:'ON',
+  sbdRate:0.122, genRate:0.265, sbdLimit:500000, passiveRate:0.50, aaii:50000,
+  ohpOn:true,
+  A:{profit:100000,incl:0.5},
+  B:{profit:100000,ohp:true},
+  C:{income:300000},
+  D:{income:100000, ownerRate:0.47}
+};
+
+function taxProgressive(amount, bands){
+  if(amount<=0) return 0; let prev=0, tax=0;
+  for(const {upper,rate} of bands){ const cap=Math.min(amount,upper);
+    if(cap>prev){ tax+=(cap-prev)*rate; prev=cap; }
+    if(upper===Infinity) break; }
+  return tax;
+}
+function ohpOnt(taxable){
+  if (taxable<=20000) return 0;
+  if (taxable<=36000) return Math.min(300,(taxable-20000)*0.06);
+  if (taxable<=48000) return Math.min(450,300+(taxable-36000)*0.06);
+  if (taxable<=72000) return Math.min(600,450+(taxable-48000)*0.25);
+  if (taxable<=200000) return Math.min(750,600+(taxable-72000)*0.25);
+  return Math.min(900,750+(taxable-200000)*0.25);
+}
+
+function computeA(){
+  const taxable = state.A.profit*state.A.incl;
+  const fed  = taxProgressive(taxable, state.fed);
+  const prov = taxProgressive(taxable, state.prov[state.currentProv]||state.prov.ON);
+  const ohp  = state.ohpOn ? ohpOnt(taxable) : 0;
+  const total = fed + prov + ohp;
+  const net   = state.A.profit - total;
+  return {fed,prov,total,net};
+}
+function computeB(){
+  const amt  = state.B.profit;
+  const fed  = taxProgressive(amt, state.fed);
+  const prov = taxProgressive(amt, state.prov[state.currentProv]||state.prov.ON);
+  const ohp  = (state.B.ohp && state.ohpOn) ? ohpOnt(amt) : 0;
+  const total = fed + prov + ohp;
+  const net   = amt - total;
+  return {fed,prov,total,net};
+}
+function computeC(){
+  const inc = state.C.income;
+  const sbd = Math.min(inc, state.sbdLimit)*state.sbdRate;
+  const gen = Math.max(inc - state.sbdLimit, 0)*state.genRate;
+  const total = sbd + gen;
+  const net   = inc - total; // retained in company
+  return {total, net};
+}
+function computeD(){
+  const inc = state.D.income;
+  const corpTax      = inc*state.passiveRate;
+  const netCorp      = inc - corpTax;        // retained at corp
+  const rdtohAccrued = inc*0.3067;
+  const dividend     = netCorp;
+  const rdtohRefund  = Math.min(dividend*0.3833, rdtohAccrued);
+  const personalTax  = dividend*state.D.ownerRate;
+  const netOwner     = dividend - personalTax + rdtohRefund;
+  const totalAll     = corpTax + personalTax - rdtohRefund; // «совокупный» налог
+  return {totalAll, netCorp, netOwner};
+}
+
+const STRUCTURES = [
+  // PERSONAL / EMPLOYMENT
+  {title:'Employee (T4)', desc:'Employee earning wages/salary reported on a T4 slip; taxed under personal progressive rates. Employer must withhold/remit CPP (Canada Pension Plan) and EI (Employment Insurance); employee cannot deduct business expenses except limited employment expenses with Form T777. Generally no business risk but limited expense planning.', cat:'PERSONAL'},
+  {title:'Contract / Gig (T4A)', desc:'Self-directed contractor (no corporation). Income is business income taxed personally; reasonable business expenses deductible. Must pay both employee and employer portions of CPP (self-employed CPP). No EI by default. Cash-flow flexibility but you bear compliance (GST/HST if required) and business risk.', cat:'PERSONAL'},
+  {title:'Sole Proprietor', desc:'Unincorporated business; profits taxed at personal marginal rates; losses may offset other income. Deduct ordinary and reasonable expenses. Unlimited liability. CPP as self-employed; register for GST/HST if required.', cat:'PERSONAL'},
+  {title:'Sole Prop (DBA/Trade Name)', desc:'Same taxation as a sole proprietor; “DBA/Trade Name” is only a business name registration (no separate legal person). Unlimited liability remains; accounting integrated with personal return (T1).', cat:'PERSONAL'},
+
+  // FLOW‑THROUGH ENTITIES
+  {title:'General Partnership (GP)', desc:'Two or more persons carry on business in common; partnership is not a taxpayer—income/loss flows through to partners and is taxed to them. General partners have joint and several, unlimited liability. Written agreement recommended.', cat:'FLOW'},
+  {title:'Limited Partnership (LP)', desc:'Flow-through entity with at least one general partner (unlimited liability) and limited partners (liability limited to contributed capital). Income allocated to partners and taxed to them. Often used for investment/film/real estate funds.', cat:'FLOW'},
+  {title:'Limited Liability Partnership (LLP)', desc:'Partnership form for regulated professions (e.g., law, accounting). Flow-through taxation; partners are shielded from certain liabilities of other partners. Professional regulation applies.', cat:'FLOW'},
+
+  // CORPORATIONS (ACTIVE)
+  {title:'CCPC — Canadian‑Controlled Private Corporation', desc:'Private corporation controlled by Canadian residents (as defined in ITA). Eligible for Small Business Deduction (SBD) on Active Business Income up to the SBD limit, yielding a lower combined corp rate; subject to general rate above the limit. Access to refundable/grind rules (AAII can reduce SBD).', cat:'CORP_ACTIVE'},
+  {title:'Operating Company (Opco)', desc:'Active business corporation that earns operating profits. In a CCPC, profits up to the SBD limit taxed at the small business rate, remainder at general rate. Often paired with a Holdco for asset protection and cash management.', cat:'CORP_ACTIVE'},
+  {title:'Professional Corporation (PC)', desc:'Corporation for regulated professionals (rules vary by province). Taxed like a CCPC on active income (SBD where eligible). Professional liability generally remains personal for malpractice.', cat:'CORP_ACTIVE'},
+  {title:'Corporation — Federal (CBCA)', desc:'Incorporated federally under the Canada Business Corporations Act (CBCA); name protection across Canada; taxation still by province/territory of permanent establishment. Useful for interprovincial operations.', cat:'CORP_ACTIVE'},
+  {title:'Corporation — Ontario (OBCA)', desc:'Incorporated provincially under the Ontario Business Corporations Act (OBCA); name protection within Ontario. Corporate tax rates depend on Ontario rules for the permanent establishment.', cat:'CORP_ACTIVE'},
+  {title:'Unlimited Liability Corporation (ULC)', desc:'Special corporate form available in AB/BC/NS where shareholders have unlimited liability. Sometimes used for cross‑border planning with U.S. “check‑the‑box” treatment; complex and niche. Not typically used for ordinary domestic planning.', cat:'CORP_ACTIVE'},
+  {title:'Non‑CCPC (not Canadian‑Controlled Private Corporation)', desc:'Private corporation that is not CCPC (e.g., foreign control). Not eligible for SBD; pays general corporate rates. Different refund/GRIP rules can apply.', cat:'CORP_ACTIVE'},
+  {title:'Canadian Subsidiary', desc:'Canadian corporation owned by foreign or other parent. Taxed in Canada like any other corporation; cross‑border withholding/transfer pricing and “permanent establishment” rules may apply.', cat:'CORP_ACTIVE'},
+
+  // CORPORATIONS (PASSIVE / HOLDCO)
+  {title:'Investment Holding Co (Holdco/IHC)', desc:'Holding company for passive investments (interest, rents, portfolio dividends). Usually a Specified Investment Business (SIB) so no SBD. Passive investment income can create RDTOH (Refundable Dividend Tax On Hand) balances that are refunded as non‑eligible dividends are paid.', cat:'HOLDCO'},
+  {title:'Investment Holdco (pure passive)', desc:'Pure passive corporation; passive income counts toward AAII (Adjusted Aggregate Investment Income). Group AAII over $50,000 can grind (reduce) the SBD limit of associated CCPCs.', cat:'HOLDCO'},
+  {title:'Opco → Holdco → Owner', desc:'“Pipeline” of dividends from Opco to Holdco and then to the individual. Can improve asset protection and control timing of personal tax. Personal tax on dividends still applies; RDTOH refunds may be triggered.', cat:'HOLDCO'},
+
+  // SPECIAL / OTHER
+  {title:'Branch (Non‑resident)', desc:'A foreign corporation carrying on business in Canada through a permanent establishment (PE). Pays Part I tax on Canadian profits and may owe Part XIV branch tax (akin to dividend withholding).', cat:'SPECIAL'},
+  {title:'Co‑operative (Co‑op)', desc:'Member‑owned organization with special rules for patronage dividends/distributions. Tax treatment differs from ordinary corporations.', cat:'SPECIAL'},
+  {title:'Not‑for‑Profit Corporation (NPO)', desc:'Organization operated exclusively for non‑profit purposes; subject to specific ITA rules (not automatically tax‑exempt like registered charities). Filing and compliance differ from for‑profit corps.', cat:'SPECIAL'},
+  {title:'Registered Charity', desc:'Qualified donee registered with CRA; may issue official donation receipts. Subject to strict compliance and annual filings (T3010).', cat:'SPECIAL'},
+  {title:'Family / Discretionary Trust', desc:'Trust that can allocate income/capital among beneficiaries at trustee’s discretion; used for income‑splitting and estate planning. Files T3 return; attribution/TOSI rules may apply.', cat:'SPECIAL'},
+  {title:'Employee Benefit Trust / ESOP / EOT', desc:'Employee ownership/benefit structures. ESOP = Employee Share Ownership Plan; EOT = Employee Ownership Trust (new federal rules allow tax‑favoured EOTs). Complex eligibility and compliance apply.', cat:'SPECIAL'},
+  {title:'Employer (Payroll)', desc:'Employer obligations: open CRA RP (Payroll) account; withhold/remit CPP and EI; provincial programs such as WSIB (ON) and Employer Health Tax (EHT); issue T4 and ROE as required.', cat:'SPECIAL'}
+];
+const LABEL_MAP = {
+  PERSONAL:'Personal / Employment',
+  FLOW:'Flow-Through Entities',
+  CORP_ACTIVE:'Corporations (Active)',
+  HOLDCO:'Corporations (Passive / Holdco)',
+  SPECIAL:'Special / Other'
+};
+function renderFormsList(){
+  const body = document.getElementById('formsListBody');
+  if(!body) return;
+  body.innerHTML = '';
+
+  // group items by category
+  const byCat = STRUCTURES.reduce((m,x)=>{
+    (m[x.cat]||(m[x.cat]=[])).push(x);
+    return m;
+  }, {});
+
+  // helper to build source icons
+  function makeSourceIcons(title){
+    const arr = SOURCES[title]||[];
+    if(!arr.length) return '';
+    return `<span class="src-icons">${arr.map(s=>`<a href="${s.url}" target="_blank" rel="noopener noreferrer" title="${s.quote.replace(/\"/g,'&quot;')}">🔗</a>`).join('')}</span>`;
+  }
+
+  // render in fixed category order
+  Object.keys(LABEL_MAP).forEach(cat=>{
+    const items = byCat[cat] || [];
+    if(!items.length) return;
+    const rowspan = items.length;
+
+    items.forEach((it, idx)=>{
+      const tr = document.createElement('tr');
+      const firstCell = idx===0 ? `<td class="group-cell col-fixed1" rowspan="${rowspan}">${LABEL_MAP[cat]}</td>` : '';
+      const titleHTML = expandScenarioTitle(it.title);
+      tr.innerHTML = `
+        ${firstCell}
+        <td class="col-scenario col-fixed2">${titleHTML}</td>
+        <td>${it.desc || ''} ${makeSourceIcons(it.title)}</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+        <td class="num">—</td>`; // Eff. %
+      body.appendChild(tr);
+    });
+  });
+}
+
+// --- Self tests (do not remove). Additions below help catch regressions ---
+function selfTests(){
+  try{
+    const headCols = document.querySelectorAll('#formsListTable thead th').length;
+    console.assert(headCols===9,'[test] header has 9 columns');
+
+    const groupCells = document.querySelectorAll('#formsListBody td.group-cell');
+    const expectedGroups = Object.keys(LABEL_MAP).length;
+    console.assert(groupCells.length===expectedGroups,'[test] group cells count == categories');
+
+    const totalRows = document.querySelectorAll('#formsListBody tr').length;
+    const expectedRows = STRUCTURES.length; // only item rows now
+    console.assert(totalRows===expectedRows,'[test] total item rows == structures');
+
+    console.assert(groupCells[0] && groupCells[0].textContent.trim().length>0,'[test] first group cell not empty');
+
+    const provSel = document.getElementById('provSel');
+    console.assert(provSel && provSel.tagName==='SELECT','[test] dropdown exists');
+  }catch(e){
+    console.error('[selfTests] failed', e);
+  }
+}
+
+// Abbreviation map for Scenario column
+const ABBR = {
+  'CCPC':'Canadian‑Controlled Private Corporation',
+  'DBA':'Doing Business As',
+  'Opco':'Operating Company',
+  'Holdco':'Holding Company',
+  'GP':'General Partnership',
+  'LP':'Limited Partnership',
+  'LLP':'Limited Liability Partnership',
+  'PC':'Professional Corporation',
+  'ULC':'Unlimited Liability Corporation',
+  'CBCA':'Canada Business Corporations Act',
+  'OBCA':'Ontario Business Corporations Act',
+  'PE':'Permanent Establishment',
+  'NPO':'Not‑for‑Profit Organization',
+  'ESOP':'Employee Share Ownership Plan',
+  'EOT':'Employee Ownership Trust',
+  'RP':'CRA Payroll Program Account',
+  'CPP':'Canada Pension Plan',
+  'EI':'Employment Insurance',
+  'WSIB':'Workplace Safety & Insurance Board',
+  'EHT':'Employer Health Tax',
+  'T4':'Statement of Remuneration Paid',
+  'ROE':'Record of Employment',
+  'IHC':'Investment Holding Company',
+  'SIB':'Specified Investment Business',
+  'AAII':'Adjusted Aggregate Investment Income',
+  'RDTOH':'Refundable Dividend Tax On Hand',
+  // extras to improve clarity in titles where they appear
+  'SBD':'Small Business Deduction',
+  'GRIP':'General Rate Income Pool',
+  'OHP':'Ontario Health Premium'
+};
+
+// Official-source links and short quotes for tooltip by title
+const SOURCES = {
+  'Employee (T4)': [
+    {label:'CRA — Employee vs. self‑employed', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4110.html', quote:'An employee works for an employer who controls what work is done.'}
+  ],
+  'Contract / Gig (T4A)': [
+    {label:'CRA — Self‑employed business income', url:'https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/self-employment-business-income.html', quote:'Self‑employed individuals report business income and may deduct expenses.'}
+  ],
+  'Sole Proprietor': [
+    {label:'CRA — Sole proprietorship', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/small-businesses-self-employed-income/setting-your-business/sole-proprietorship-partnership.html', quote:'A sole proprietorship is an unincorporated business with one owner.'}
+  ],
+  'Sole Prop (DBA/Trade Name)': [
+    {label:'Ontario — Register a business name', url:'https://www.ontario.ca/page/registering-your-business-name', quote:'Registering a name does not create a separate legal entity.'}
+  ],
+  'General Partnership (GP)': [
+    {label:'CRA — Partnerships', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/sole-proprietorships-partnerships.html', quote:'A partnership is the relation between persons carrying on business in common.'}
+  ],
+  'Limited Partnership (LP)': [
+    {label:'CRA — Partnerships', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/sole-proprietorships-partnerships.html', quote:'Limited partners have limited liability; the general partner is fully liable.'}
+  ],
+  'Limited Liability Partnership (LLP)': [
+    {label:'Ontario — LLP regulation', url:'https://www.ontario.ca/laws/regulation/000284', quote:'A limited liability partnership limits a partner’s liability.'}
+  ],
+  'CCPC — Canadian‑Controlled Private Corporation': [
+    {label:'CRA — CCPC definition', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4012.html', quote:'A Canadian‑controlled private corporation meets specific ownership and control tests.'},
+    {label:'CRA — Small Business Deduction', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/business-tax-credits/small-business-deduction.html', quote:'The SBD reduces tax on active business income up to the business limit.'}
+  ],
+  'Operating Company (Opco)': [
+    {label:'CRA — Schedule 7 (ABI/AAII)', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/forms/t2sch7.html', quote:'Schedule 7 calculates active business income and aggregate investment income.'}
+  ],
+  'Professional Corporation (PC)': [
+    {label:'Ontario — Professional corporations', url:'https://www.ontario.ca/page/professional-corporations', quote:'Some regulated professionals may incorporate professional corporations.'}
+  ],
+  'Corporation — Federal (CBCA)': [
+    {label:'Innovation, Science and Economic Development — CBCA', url:'https://ised-isde.canada.ca/site/corporations-canada/en/incorporate-federally', quote:'Federal incorporation provides name protection across Canada.'}
+  ],
+  'Corporation — Ontario (OBCA)': [
+    {label:'Ontario — Incorporate in Ontario', url:'https://www.ontario.ca/page/incorporating-business-ontario', quote:'Ontario corporations are created under the OBCA.'}
+  ],
+  'Unlimited Liability Corporation (ULC)': [
+    {label:'BC Laws — ULC', url:'https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02057_00', quote:'An unlimited liability company has shareholders with unlimited liability.'}
+  ],
+  'Non‑CCPC (not Canadian‑Controlled Private Corporation)': [
+    {label:'CRA — CCPC status', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4012.html', quote:'Not all private corporations are Canadian‑controlled.'}
+  ],
+  'Canadian Subsidiary': [
+    {label:'CRA — Permanent establishment', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/provincial-territorial-corporation-tax/permanent-establishment.html', quote:'A permanent establishment is usually a fixed place of business.'}
+  ],
+  'Investment Holding Co (Holdco/IHC)': [
+    {label:'CRA — RDTOH', url:'https://www.canada.ca/en/revenue-agency/services/e-services/digital-services-businesses/business-account/about-refundable-dividend-tax-on-hand-rdtoh-balances.html', quote:'Refundable Dividend Tax on Hand may be refunded when dividends are paid.'}
+  ],
+  'Investment Holdco (pure passive)': [
+    {label:'CRA — Small Business Deduction grind (AAII)', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/forms/t2sch7.html', quote:'Adjusted aggregate investment income can reduce the business limit.'}
+  ],
+  'Opco → Holdco → Owner': [
+    {label:'CRA — Dividend refund rules', url:'https://www.canada.ca/en/revenue-agency/programs/about-canada-revenue-agency-cra/federal-government-budgets/budget-2018-equality-growth-strong-middle-class/passive-investment-income/dividend-refund-rules.html', quote:'Dividend refunds are limited to 38⅓% of taxable dividends paid and balances.'}
+  ],
+  'Branch (Non‑resident)': [
+    {label:'CRA — Permanent establishment', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/provincial-territorial-corporation-tax/permanent-establishment.html', quote:'A permanent establishment is usually a fixed place of business.'}
+  ],
+  'Co‑operative (Co‑op)': [
+    {label:'CRA — Co‑operatives', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/co-operatives.html', quote:'Co‑operatives are organizations owned by their members.'}
+  ],
+  'Not‑for‑Profit Corporation (NPO)': [
+    {label:'CRA — Non‑profit organizations', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/other-organizations/non-profit-organizations.html', quote:'A non‑profit organization is organized and operated for non‑profit purposes.'}
+  ],
+  'Registered Charity': [
+    {label:'CRA — Charities', url:'https://www.canada.ca/en/services/taxes/charities.html', quote:'Registered charities can issue donation receipts and must meet compliance requirements.'}
+  ],
+  'Family / Discretionary Trust': [
+    {label:'CRA — T3 Trust Guide', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4013.html', quote:'Trusts file a T3 return and may allocate income to beneficiaries.'}
+  ],
+  'Employee Benefit Trust / ESOP / EOT': [
+    {label:'CRA — Employee ownership trusts', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/employee-ownership-trusts.html', quote:'The federal budget introduced rules for employee ownership trusts.'}
+  ],
+  'Employer (Payroll)': [
+    {label:'CRA — Payroll accounts (RP)', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll.html', quote:'Open a payroll account and remit CPP, EI, and income tax.'}
+  ]
+};
+function expandScenarioTitle(text){
+  let out = text;
+  const keys = Object.keys(ABBR).sort((a,b)=>b.length-a.length);
+  keys.forEach(k=>{
+    // Properly escape regex metacharacters in the key
+    const safe = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Use word boundaries; must escape backslashes inside template literal
+    const rx = new RegExp(`\\b${safe}\\b`, 'g');
+    out = out.replace(rx, `<abbr title="${ABBR[k]}">${k}</abbr>`);
+  });
+  return out;
+}
+
+// --- Init ---
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderFormsList();
+  selfTests();
+  const provSel = document.getElementById('provSel');
+  if (provSel) {
+    provSel.addEventListener('change', (e)=>{
+      state.currentProv = e.target.value || 'ON';
+      renderFormsList();
+      selfTests();
+    });
+  }
+});
+</script>
+<script id="structures-enhanced">
+// --- injected: enhanced STRUCTURES with full descriptions and source links ---
+(function(){
+  var S = [
+    {id:'employee_t4', title:'Employee (T4)', scenario:'S2', tax:'personal-active', cat:'PERSONAL',
+     desc:'Works for an employer and is paid wages or salary. Income is taxed as personal employment income. The employer withholds Canada Pension Plan contributions and Employment Insurance premiums and issues a T4 slip. No corporate shielding of liability; limited deductions compared to a business.',
+     src:[{label:'CRA – Employee definition', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/benefits-allowances.html', quote:'An employee works for an employer and is paid wages or salary.'}]},
+    {id:'gig_t4a', title:'Contract / Gig (T4A)', scenario:'S2', tax:'personal-active', cat:'PERSONAL',
+     desc:'Independent contractor earning business income personally. Files as self‑employed; may deduct reasonable business expenses; must remit both employer and employee portions of Canada Pension Plan contributions. Reported on a T4A slip in many cases.',
+     src:[{label:'CRA – Self‑employed & T4A', url:'https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/self-employment-business-income.html', quote:'Self‑employed individuals report business income and may deduct expenses.'}]},
+    {id:'sole_prop', title:'Sole Proprietor', scenario:'S2', tax:'personal-active', cat:'PERSONAL',
+     desc:'Unincorporated business owned by one individual. Profit is taxed on the owner’s personal return at graduated rates. Business expenses are deductible. No limited liability shield; business and personal assets are exposed.',
+     src:[{label:'CRA – Sole proprietorships', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/small-businesses-self-employed-income/setting-your-business/sole-proprietorship-partnership.html', quote:'A sole proprietorship is an unincorporated business with one owner.'}]},
+    {id:'dba', title:'Sole Prop (Doing Business As / Trade Name)', scenario:'S2', tax:'personal-active', cat:'PERSONAL',
+     desc:'Sole proprietorship using a registered trade name. Tax treatment is the same as a sole proprietorship; the trade name does not create a separate legal entity or limited liability.',
+     src:[{label:'Ontario – Register a business name', url:'https://www.ontario.ca/page/registering-your-business-name', quote:'Registering a name does not create a new legal entity.'}]},
+
+    {id:'gp', title:'General Partnership', scenario:'S5', tax:'flow-through', cat:'FLOW-THROUGH',
+     desc:'Two or more persons carry on business together. Income “flows through” to partners and is taxed on their personal or corporate returns. General partners have unlimited liability.',
+     src:[{label:'CRA – Partnerships', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/sole-proprietorships-partnerships.html', quote:'A partnership is the relation between persons carrying on business in common.'}]},
+    {id:'lp', title:'Limited Partnership', scenario:'S5', tax:'flow-through', cat:'FLOW-THROUGH',
+     desc:'Partnership with at least one general partner with unlimited liability and limited partners whose liability is limited to their investment. Income flows through to partners and is taxed at their level.',
+     src:[{label:'CRA – Partnerships (LP)', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/sole-proprietorships-partnerships.html', quote:'Limited partners have limited liability; the general partner is fully liable.'}]},
+    {id:'llp', title:'Limited Liability Partnership', scenario:'S5', tax:'flow-through', cat:'FLOW-THROUGH',
+     desc:'Partnership commonly used by regulated professions. Limits liability of partners for the negligence of other partners. Income flows through and is taxed in the hands of the partners.',
+     src:[{label:'Ontario – LLP overview', url:'https://www.ontario.ca/laws/regulation/000284', quote:'A limited liability partnership limits a partner’s liability for the partnership’s obligations.'}]},
+
+    {id:'ccpc_active', title:'Canadian‑Controlled Private Corporation — Active Business', scenario:'S3', tax:'corp-active', cat:'CORP',
+     desc:'Private corporation that is a Canadian corporation and not controlled directly or indirectly by non‑residents or public corporations. Eligible for the Small Business Deduction on active business income up to the provincial limit, which reduces the corporate tax rate.',
+     src:[{label:'CRA – CCPC definition', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/t4012/t2-corporation-income-tax-guide-chapter-1-page-1-t2-return.html', quote:'A Canadian‑controlled private corporation meets all requirements at the end of the tax year.'},
+          {label:'CRA – Small business deduction', url:'https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/corporations/business-tax-credits/small-business-deduction.html', quote:'The small business deduction reduces tax on active business income up to the business limit.'}]},
+    {id:'opco', title:'Operating Company (Active Business Corporation)', scenario:'S3', tax:'corp-active', cat:'CORP',
+     desc:'Corporation that earns active business income from operations. May claim the Small Business Deduction up to the business limit, with remaining income taxed at the general corporate rate.',
+     src:[{label:'CRA – Active business income', url:'https://www.canada.ca/en/revenue-agency/services/forms-publications/forms/t2sch7.html', quote:'Schedule 7 calculates active business income and aggregate investment income.'}]},
+    {id:'professional_corp', title:'Professional Corporation', scenario:'S6', tax:'corp-active', cat:'CORP',
+     desc:'Corporation for a regulated professional (for example, physician or dentist) allowed under provincial law. Tax treatment mirrors an active business corporation that qualifies for the Small Business Deduction, subject to provincial rules.',
+     src:[{label:'Ontario – Professional corporations', url:'https://www.ontario.ca/page/professional-corporations', quote:'Some regulated professionals may incorporate professional corporations under provincial law.'}]},
+    {id:'cbca', title:'Federal Corporation (Canada Business Corporations Act)', scenario:'S3', tax:'corp-active', cat:'CORP',
+     desc:'Corporation formed under the Canada Business Corporations Act with name protection across Canada. Corporate income is allocated
